@@ -1,8 +1,35 @@
-CREATE TABLE IF NOT EXISTS `warns` (
-  `id` int(11) NOT NULL,
-  `user_id` varchar(20) NOT NULL,
-  `server_id` varchar(20) NOT NULL,
-  `moderator_id` varchar(20) NOT NULL,
-  `reason` varchar(255) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS players (
+  player_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS decks (
+  deck_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL,
+  commander TEXT NOT NULL UNIQUE,
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (player_id) REFERENCES players(player_id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE IF NOT EXISTS matches (
+  match_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS match_participants (
+  match_id INTEGER NOT NULL,
+  player_id INTEGER NOT NULL,
+  deck_id INTEGER,
+  placement INTEGER,
+  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (match_id, player_id),
+  FOREIGN KEY (match_id) REFERENCES matches(match_id) ON DELETE CASCADE,
+  FOREIGN KEY (player_id) REFERENCES players(player_id) ON DELETE CASCADE,
+  FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE SET NULL
 );
