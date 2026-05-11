@@ -8,8 +8,6 @@ class DatabaseManager:
         self.connection = connection
 
     ###=====  DB FUNCTIONS  =====###
-
-    
     async def init_db(self) -> None:
         """Initialize the database's tables and schema from a SQL file.
         
@@ -96,6 +94,8 @@ class DatabaseManager:
             no players exist.
         """
 
+        # (player_id, player_name, num_decks, num_games, ranking, avg_placement)
+
         cursor = await self.connection.execute(
             """
             SELECT player_id, player_name 
@@ -105,6 +105,111 @@ class DatabaseManager:
         )
         return await cursor.fetchall()
     
+
+    async def get_all_player_stats(self):
+        cursor = await self.connection.execute(
+        """
+        WITH player_stats AS (
+            SELECT
+                p.player_id,
+                p.player_name,
+
+                COUNT(DISTINCT mp.match_id) AS games_played,
+
+                AVG(mp.placement) AS avg_placement,
+
+                COUNT(DISTINCT d.deck_id) AS decks_owned
+
+            FROM players p
+
+            LEFT JOIN match_participants mp
+                ON p.player_id = mp.player_id
+
+            LEFT JOIN decks d
+                ON p.player_id = d.player_id
+
+            GROUP BY p.player_id, p.player_name
+        ),
+
+        ranked_players AS (
+            SELECT
+                player_id,
+                player_name,
+                games_played,
+                decks_owned,
+
+                ROUND(avg_placement, 2) AS avg_placement,
+
+                RANK() OVER (
+                    ORDER BY avg_placement ASC
+                ) AS ranking
+
+            FROM player_stats
+            WHERE games_played > 0
+        )
+
+        SELECT
+            ps.player_id,
+            ps.player_name,
+            ps.games_played,
+            ps.decks_owned,
+            ROUND(ps.avg_placement, 2) AS avg_placement,
+            rp.ranking
+
+        FROM player_stats ps
+
+        LEFT JOIN ranked_players rp
+            ON ps.player_id = rp.player_id
+
+        ORDER BY
+            rp.ranking ASC NULLS LAST,
+            ps.player_name ASC
+        """)
+        return await cursor.fetchall()
+    
+
+    async def get_player_by_id(self, player_id:int) -> list[tuple[int, str, int, float]]:
+        cursor = await self.connection.execute(
+            """
+            WITH player_stats AS (
+                SELECT
+                    p.player_id,
+                    p.player_name,
+                    COUNT(mp.match_id) AS games_played,
+                    AVG(mp.placement) AS avg_placement
+                FROM players p
+                LEFT JOIN match_participants mp
+                    ON p.player_id = mp.player_id
+                GROUP BY p.player_id, p.player_name
+            ),
+
+            ranked_players AS (
+                SELECT
+                    player_id,
+                    player_name,
+                    games_played,
+                    ROUND(avg_placement, 2) AS avg_placement,
+                    RANK() OVER (
+                        ORDER BY avg_placement ASC
+                    ) AS ranking
+                FROM player_stats
+                WHERE games_played > 0
+            )
+
+            SELECT
+                ps.player_id,
+                ps.player_name,
+                ps.games_played,
+                ROUND(ps.avg_placement, 2) AS avg_placement,
+                rp.ranking
+            FROM player_stats ps
+            LEFT JOIN ranked_players rp
+                ON ps.player_id = rp.player_id
+            WHERE ps.player_id = ?
+            """,
+            (player_id,)
+        )
+        return await cursor.fetchall()
 
     async def search_players(self, query: str) -> list[tuple[int, str]]:
         """Search for players whose names contain the given query string.
@@ -184,6 +289,20 @@ class DatabaseManager:
             return None
 
 
+
+    async def add_deck_by_id(self, commander_name: str, player_id: int) -> int:
+        try:
+            cursor = await self.connection.execute(
+                "INSERT INTO decks(player_id, commander) VALUES (?, ?)",
+                (player_id, commander_name)
+            )
+            await self.connection.commit()
+            return cursor.lastrowid
+
+        except sqlite3.IntegrityError:
+            return None
+
+
     async def remove_deck(self, commander_name: str, player_name: str) -> int:
         """Delete a deck from a player's library.
 
@@ -253,28 +372,47 @@ class DatabaseManager:
         
 
     async def get_decks(self) -> list[tuple[int, str, str]]:
-        """Return a list of all decks, ordered alphabetically by [player_name, commander_name]
+        """Return a list of all decks, ordered by [player_id, commander_name]
 
         Usage:
             decks
 
         Returns:
-            list[tuple[int,str,str]]: A list of (deck_id, player_name, commander_name) tuples,
+            list[tuple[int,int,str]]: A list of (deck_id, player_id, commander_name) tuples,
                 ordered alphabetically by player_name, then commander_name
         """
 
         async with self.connection.execute(
             """
-            SELECT d.deck_id, p.player_name, d.commander
+            SELECT deck_id, player_id, commander
             FROM decks d 
-            JOIN players p on p.player_id = d.player_id
-            ORDER BY p.player_name, d.commander
             """
         ) as cursor:
             return await cursor.fetchall()
+        
+
+    async def get_decks_by_player_id(self, player_id:int) -> list[tuple[int, str, int, float]]:
+
+        cursor = await self.connection.execute(
+            """
+            SELECT
+                d.deck_id,
+                d.commander,
+                COUNT(m.deck_id) AS games_played,
+                COALESCE(AVG(m.placement), 0) AS avg_placement
+            FROM decks d 
+            LEFT JOIN match_participants m 
+                ON d.deck_id = m.deck_id
+            WHERE d.player_id = ?
+            GROUP BY d.deck_id, d.commander
+            ORDER BY games_played DESC;
+            """,
+            (player_id,)
+        ) 
+        return await cursor.fetchall()
 
     ###=====  MATCH FUNCTIONS  =====###
-    async def create_match(self) -> int:
+    async def create_match(self) -> int:    
         """Create a new match object.
         
         Usage:
@@ -292,7 +430,7 @@ class DatabaseManager:
         return cursor.lastrowid
     
 
-    async def add_match_player(self, match_id:int, player_name:str, deck_id:int, placement:int) -> int:
+    async def add_match_player(self, match_id:int, player_id:id, deck_id:int, placement:int) -> int:
         """Add a participant record to a match.
         
         Usage:
@@ -300,7 +438,7 @@ class DatabaseManager:
             
         Args:
             match_id (int): The uid of the target match. Match must exist.
-            player_name (str): The exact name of the target player.
+            player_id (int): The uid of the target player.
             deck_id (int): The uid of a target deck.
             placement (int): The player's placement in the match.
             
@@ -308,16 +446,6 @@ class DatabaseManager:
             int: the id of the newly created match
         """
 
-        cursor = await self.connection.execute(
-            "SELECT player_id FROM players WHERE player_name = ?",
-            (player_name,)
-        )
-        row = await cursor.fetchone()
-
-        if not row:
-            raise ValueError(f"Player '{player_name}' not found")
-
-        player_id = row[0]
 
         cursor = await self.connection.execute(
             "INSERT INTO match_participants(match_id, player_id, deck_id, placement) VALUES (?, ?, ?, ?)",

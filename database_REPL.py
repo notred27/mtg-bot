@@ -5,6 +5,8 @@ import aiosqlite
 
 from database import DatabaseManager
     
+# WARN: This REPL is outdated compared to the actual DB functions. Some functions may have unexpected behavior.
+
 
 class CLI:
     GREEN = "\033[92m"
