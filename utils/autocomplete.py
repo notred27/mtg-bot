@@ -54,7 +54,6 @@ async def player_autocomplete(interaction: discord.Interaction, current: str):
     db = interaction.client.database
 
     players = await db.search_players(current)
-    print(players)
 
     return [
         app_commands.Choice(

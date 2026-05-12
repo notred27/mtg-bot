@@ -85,6 +85,30 @@ class DatabaseManager:
             return cursor.rowcount
     
 
+    async def remove_player_by_id(self, player_id: int) -> int:
+        """Remove a player by their id.
+        
+        Usage:
+            remove_player [PLAYER_ID]
+            
+        Args:
+            player_id (int): The id of the player to remove.
+
+        Returns:
+            int: The number of removed rows (1 = success)
+    
+        """
+
+        async with self.connection.execute(
+            """
+            DELETE FROM players 
+            WHERE player_id = ?
+            """,
+            (player_id,)
+        ) as cursor:
+            await self.connection.commit()
+            return cursor.rowcount
+
     async def get_players(self) -> list[tuple[int, str]]:
         """Return a list of all players, ordered by name.
         
@@ -336,6 +360,31 @@ class DatabaseManager:
             WHERE commander = ? AND player_id = ?
             """,
             (commander_name, player_id)
+        ) as cursor:
+            await self.connection.commit()
+            return cursor.rowcount
+
+
+    async def remove_deck_by_id(self, deck_id: int) -> int:
+        """Delete a deck from a player's library.
+
+        Usage:
+            remove_deck [DECK_ID]
+
+        Args:
+            deck_id (int): The uid of the target deck to remove.
+
+        Returns:
+            int: Number of rows deleted. (1 for success)
+        """
+
+        print(deck_id)
+        async with self.connection.execute(
+            """
+            DELETE FROM decks 
+            WHERE deck_id = ?
+            """,
+            (deck_id,)
         ) as cursor:
             await self.connection.commit()
             return cursor.rowcount

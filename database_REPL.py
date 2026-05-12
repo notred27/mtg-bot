@@ -61,6 +61,7 @@ async def REPL():
             "deck": db.get_deck,
             "add_deck": db.add_deck,
             "remove_deck": db.remove_deck,
+            "remove_deck_by_id": db.remove_deck_by_id,
 
             "matches": db.matches,
             "create_match": db.create_match,
@@ -168,6 +169,20 @@ async def REPL():
                         except Exception as e:
                             CLI.error(f"Error: {e}")
 
+                    case "remove_deck_by_id":
+                        try:
+                            confirm =  input(f"Are you sure you want to delete this deck? (y/n)\n").strip().lower()
+                            if confirm not in ("y", "yes"):
+                                CLI.print("Deletion cancelled")
+                                continue
+                            
+                            rows_deleted = await db.remove_deck_by_id(args[1])
+                            if rows_deleted:
+                                CLI.print("Deleted successfully")
+                            else:
+                                CLI.error("No matching deck found")
+                        except Exception as e:
+                            CLI.error(f"Error: {e}")
 
 
                     # Match commands

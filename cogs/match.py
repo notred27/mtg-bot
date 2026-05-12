@@ -3,10 +3,6 @@ from discord.ext import commands
 from discord.ext.commands import Context
 
 
-# =========================================================
-# PLAYER SELECT
-# =========================================================
-
 class PlayerSelect(discord.ui.Select):
     def __init__(self, players, selected_player_id = None):
 
@@ -27,7 +23,6 @@ class PlayerSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-
         view: MatchView = self.view
 
         player_id = int(self.values[0])
@@ -42,7 +37,6 @@ class PlayerSelect(discord.ui.Select):
         decks = view.decks_by_player.get(player_id, [])
 
         view.deck_select.set_decks(decks)
-
         view.refresh_components()
 
         await interaction.response.edit_message(
@@ -51,9 +45,8 @@ class PlayerSelect(discord.ui.Select):
         )
 
 
-# =========================================================
-# DECK SELECT
-# =========================================================
+
+
 
 class DeckSelect(discord.ui.Select):
     def __init__(self, selected_deck_id=None):
@@ -72,13 +65,13 @@ class DeckSelect(discord.ui.Select):
             max_values=1
         )
 
-    def set_decks(self, decks):
 
+    def set_decks(self, decks):
         options = [
             discord.SelectOption(
                 label="No Deck / Unknown",
                 value="none",
-                default=(self.selected_deck_id is None)
+                default=(self.selected_deck_id is -1)
             )
         ]
 
@@ -94,19 +87,17 @@ class DeckSelect(discord.ui.Select):
         self.options = options
         self.disabled = False
 
-    async def callback(self, interaction: discord.Interaction):
 
+    async def callback(self, interaction: discord.Interaction):
         view: MatchView = self.view
 
         value = self.values[0]
 
         if value == "none":
-
-            view.current_deck_id = None
+            view.current_deck_id = -1
             view.current_deck_name = "No Deck"
 
         else:
-
             deck_id = int(value)
 
             for d_id, commander in view.decks_by_player.get(
@@ -119,7 +110,6 @@ class DeckSelect(discord.ui.Select):
                     break
 
         view.placement_select.disabled = False
-
         view.refresh_components()
 
         await interaction.response.edit_message(
@@ -128,13 +118,11 @@ class DeckSelect(discord.ui.Select):
         )
 
 
-# =========================================================
-# PLACEMENT SELECT
-# =========================================================
+
+
 
 class PlacementSelect(discord.ui.Select):
     def __init__(self, selected_placement = None):
-
         options = [
             discord.SelectOption(
                 label=f"{i} Place",
@@ -152,13 +140,11 @@ class PlacementSelect(discord.ui.Select):
             max_values=1
         )
 
-    async def callback(self, interaction: discord.Interaction):
 
+    async def callback(self, interaction: discord.Interaction):
         view: MatchView = self.view
 
         view.current_placement = int(self.values[0])
-
-
         view.refresh_components()
 
         await interaction.response.edit_message(
@@ -167,13 +153,11 @@ class PlacementSelect(discord.ui.Select):
         )
 
 
-# =========================================================
-# MATCH VIEW
-# =========================================================
+
+
 
 class MatchView(discord.ui.View):
     def __init__(self, bot, players, decks_by_player):
-
         super().__init__(timeout=300)
 
         self.bot = bot
@@ -190,7 +174,6 @@ class MatchView(discord.ui.View):
 
         self.current_deck_id = None
         self.current_deck_name = None
-
         self.current_placement = None
 
         # Components
@@ -202,9 +185,7 @@ class MatchView(discord.ui.View):
         self.add_item(self.deck_select)
         self.add_item(self.placement_select)
 
-    # =====================================================
-    # EMBED
-    # =====================================================
+
     def refresh_components(self):
         self.remove_item(self.player_select)
         self.remove_item(self.deck_select)
@@ -231,7 +212,7 @@ class MatchView(discord.ui.View):
             selected_placement=self.current_placement
         )
 
-        if self.current_deck_name is None:
+        if self.current_deck_id is None:
             self.placement_select.disabled = True
         else:
             self.placement_select.disabled = False
@@ -242,7 +223,6 @@ class MatchView(discord.ui.View):
 
 
     def build_embed(self):
-
         embed = discord.Embed(
             title="MTG Match Builder",
             color=0xBEBEFE
@@ -250,8 +230,8 @@ class MatchView(discord.ui.View):
 
         if not self.entries:
             embed.description = "No players added yet."
-        else:
 
+        else:
             sorted_entries = sorted(
                 self.entries,
                 key=lambda x: x["placement"]
@@ -289,9 +269,6 @@ class MatchView(discord.ui.View):
 
         return embed
 
-    # =====================================================
-    # RESET CURRENT INPUTS
-    # =====================================================
 
     def reset_current_selection(self):
         self.current_player_id = None
@@ -315,21 +292,9 @@ class MatchView(discord.ui.View):
         self.add_item(self.deck_select)
         self.add_item(self.placement_select)
 
-    # =====================================================
-    # ADD PLAYER BUTTON
-    # =====================================================
 
-    @discord.ui.button(
-        label="Add Player",
-        style=discord.ButtonStyle.primary,
-        row=4
-    )
-    async def add_player_button(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
-
+    @discord.ui.button(label="Add Player", style=discord.ButtonStyle.primary, row=4)
+    async def add_player_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Validate selection
         if (
             self.current_player_id is None
@@ -371,24 +336,11 @@ class MatchView(discord.ui.View):
             view=self
         )
 
-    # =====================================================
-    # FINISH MATCH BUTTON
-    # =====================================================
 
-    @discord.ui.button(
-        label="Finish Match",
-        style=discord.ButtonStyle.green,
-        row=4
-    )
-    async def finish_match_button(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
-
+    @discord.ui.button(label="Finish Match", style=discord.ButtonStyle.green, row=4)
+    async def finish_match_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Require at least 2 players
         if len(self.entries) < 2:
-
             await interaction.response.send_message(
                 "You need at least 2 players.",
                 ephemeral=True
@@ -400,7 +352,18 @@ class MatchView(discord.ui.View):
 
         # Save player info
         for player in self.entries:
-            await self.bot.database.add_match_player(match_id, player["player_id"], player["deck_id"], player["placement"])
+            deck_id = (
+                None
+                if player["deck_id"] == -1
+                else player["deck_id"]
+            )
+
+            await self.bot.database.add_match_player(
+                match_id,
+                player["player_id"],
+                deck_id,
+                player["placement"]
+            )
 
         embed = self.build_embed()
         embed.title = "Match Saved"
@@ -411,17 +374,8 @@ class MatchView(discord.ui.View):
         )
 
 
-    @discord.ui.button(
-        label="Cancel Match",
-        style=discord.ButtonStyle.danger,
-        row=4
-    )
-    async def cancel_match_button(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
-
+    @discord.ui.button(label="Cancel Match", style=discord.ButtonStyle.danger, row=4)
+    async def cancel_match_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed = discord.Embed(
             title="Match Cancelled",
             description="The match was discarded.",
@@ -436,32 +390,21 @@ class MatchView(discord.ui.View):
         self.stop()
 
 
-    # =====================================================
-    # TIMEOUT
-    # =====================================================
-
     async def on_timeout(self):
 
         for item in self.children:
             item.disabled = True
 
 
-# =========================================================
-# COG
-# =========================================================
+
+
 
 class Match(commands.Cog):
-
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(
-        name="match",
-        description="Log a new MTG match."
-    )
+    @commands.hybrid_command(name="match", description="Log a new MTG match.")
     async def match(self, context: Context):
-
-        # Get players
         players = await self.bot.database.get_players()
 
         if not players:
@@ -478,11 +421,8 @@ class Match(commands.Cog):
         decks = await self.bot.database.get_decks()
 
         decks_by_player = {}
-
         for deck_id, player_id, commander in decks:
-            print(player_id)
             player_id = int(player_id)
-
             decks_by_player.setdefault(
                 player_id,
                 []
@@ -502,9 +442,7 @@ class Match(commands.Cog):
         )
 
 
-# =========================================================
-# SETUP
-# =========================================================
+
 
 async def setup(bot):
     await bot.add_cog(Match(bot))

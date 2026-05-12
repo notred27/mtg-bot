@@ -35,7 +35,8 @@ class MatchHistoryView(discord.ui.View):
             lines = []
 
             for e in match["participants"]:
-                commander = e["commander"]
+                print(e)
+                commander = e["commander"] or "N/A"
                 encoded = urllib.parse.quote(commander)
 
                 lines.append(
@@ -110,8 +111,8 @@ class PlayerStatsView(discord.ui.View):
         embed.add_field(
             name="`General:`",
             value="\n".join([f"- **Games played:** {self.general_stats[2]}", 
-                                f"- **Avg placement:** {(self.general_stats[3] if self.self.general_stats[3] is not None else 'N/A'):.1f}", 
-                                f"- **Ranking:** {(self.general_stats[4] if self.self.general_stats[4] is not None else 'N/A')}"]),
+                                f"- **Avg placement:** {(self.general_stats[3] if self.general_stats[3] is not None else 'N/A')}", 
+                                f"- **Ranking:** {(self.general_stats[4] if self.general_stats[4] is not None else 'N/A')}"]),
             inline=False
         )
 
