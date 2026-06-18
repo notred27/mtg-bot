@@ -1,8 +1,21 @@
-FROM python:3.12.12-slim-trixie
+# Build
+FROM python:3.12-slim AS builder
 
 WORKDIR /bot
-COPY . /bot
 
-RUN python -m pip install -r requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-ENTRYPOINT [ "python", "bot.py" ]
+
+# Runtime
+FROM python:3.12-slim
+
+WORKDIR /bot
+
+COPY --from=builder /install /usr/local
+COPY . .
+
+RUN useradd -m botuser
+USER botuser
+
+ENTRYPOINT ["python", "bot.py"]
