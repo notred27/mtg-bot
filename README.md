@@ -1,16 +1,22 @@
 # Magic The Gathering Ranking Bot
 
-A Discord bot for Magic: The Gathering, built with [discord.py](https://discordpy.readthedocs.io/en/stable/) and Python 3.12. Supports slash commands, a persistent SQLite database, and Docker deployment.
+A Discord bot for Magic: The Gathering, built with discord.py and Python 3.12. Supports slash commands, a persistent SQLite database, and Docker deployment.
 
-> Built on top of [kkrypt0nn/Python-Discord-Bot-Template](https://github.com/kkrypt0nn/Python-Discord-Bot-Template).
+
+> Built on top of kkrypt0nn/Python-Discord-Bot-Template.
+
+
+
+MTG Bot is a Discord bot for tracking Magic: The Gathering Commander games with your playgroup. It lets you register players and their decks, log match results with placements, and query stats like win rates and average placement — all from within Discord. A command-line REPL is also included for directly inspecting and managing the database outside of Discord.
 
 ---
 
-## Features
+Features
+
 
 - MTG-focused Discord commands via a modular cogs system
-- Persistent data storage with SQLite (`aiosqlite`)
-- Colored console logging + file logging to `discord.log`
+- Persistent data storage with SQLite (aiosqlite)
+- Colored console logging + file logging to discord.log
 - Docker and Docker Compose support for easy deployment
 - Configurable via environment variables
 
